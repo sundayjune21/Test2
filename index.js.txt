@@ -1,0 +1,54 @@
+import express from 'express';
+import TelegramBot from 'node-telegram-bot-api';
+import dotenv from 'dotenv';
+import { OpenAI } from 'openai';
+
+dotenv.config();
+
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+});
+
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, 'ဟယ်လို! ကျွန်တော်က လူလိုပြောတဲ့ AI Telegram bot ပါ။ မေးစရာရှိရင် စကားပြောလိုက်နော်။');
+});
+
+bot.on('message', async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text;
+
+  if (text.startsWith("/start")) return;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are a warm, friendly, helpful assistant that speaks Burmese naturally." },
+        { role: "user", content: text }
+      ],
+      temperature: 0.8,
+      max_tokens: 200,
+    });
+
+    const reply = completion.choices[0].message.content;
+    bot.sendMessage(chatId, reply);
+  } catch (err) {
+    console.error(err.message);
+    bot.sendMessage(chatId, 'မင်းရဲ့မေးခွန်းကို ဖြေမယ်ဆိုတာ မအောင်မြင်ဘူး။ ပြန်ကြိုးစားကြည့်နော်။');
+  }
+});
+
+app.get('/', (req, res) => {
+  res.send('Bot is running!');
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
